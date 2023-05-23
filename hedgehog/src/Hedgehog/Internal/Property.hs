@@ -33,6 +33,7 @@ module Hedgehog.Internal.Property (
   , DiscardLimit(..)
   , DiscardCount(..)
   , ShrinkLimit(..)
+  , ShrinkTimeLimit (..)
   , ShrinkCount(..)
   , Skip(..)
   , ShrinkPath(..)
@@ -40,6 +41,7 @@ module Hedgehog.Internal.Property (
   , withTests
   , withDiscards
   , withShrinks
+  , withShrinkTime
   , withRetries
   , withSkip
   , property
@@ -281,6 +283,7 @@ data PropertyConfig =
   PropertyConfig {
       propertyDiscardLimit :: !DiscardLimit
     , propertyShrinkLimit :: !ShrinkLimit
+    , propertyShrinkTimeLimit :: !(Maybe ShrinkTimeLimit)
     , propertyShrinkRetries :: !ShrinkRetries
     , propertyTerminationCriteria :: !TerminationCriteria
 
@@ -337,6 +340,19 @@ newtype DiscardLimit =
 --
 newtype ShrinkLimit =
   ShrinkLimit Int
+  deriving (Eq, Ord, Show, Num, Enum, Real, Integral, Lift)
+
+-- | The time limit before giving up on shrinking, in microseconds.
+--
+--   Can be constructed using numeric literals:
+--
+-- @
+--   -- 1_000_000 microseconds == 1 second
+--   1_000_000 :: ShrinkTimeLimit
+-- @
+--
+newtype ShrinkTimeLimit =
+  ShrinkTimeLimit Int
   deriving (Eq, Ord, Show, Num, Enum, Real, Integral, Lift)
 
 -- | The numbers of times a property was able to shrink after a failing test.
@@ -1164,6 +1180,8 @@ defaultConfig =
         100
     , propertyShrinkLimit =
         1000
+    , propertyShrinkTimeLimit =
+        Nothing
     , propertyShrinkRetries =
         0
     , propertyTerminationCriteria =
@@ -1247,6 +1265,13 @@ withDiscards n =
 withShrinks :: ShrinkLimit -> Property -> Property
 withShrinks n =
   mapConfig $ \config -> config { propertyShrinkLimit = n }
+
+-- | Set the time -- in microseconds -- a property is allowed to shrink before
+--   the test runner gives up and prints the counterexample.
+--
+withShrinkTime :: ShrinkTimeLimit -> Property -> Property
+withShrinkTime n =
+  mapConfig $ \config -> config { propertyShrinkTimeLimit = Just n }
 
 -- | Set the number of times a property will be executed for each shrink before
 --   the test runner gives up and tries a different shrink. See 'ShrinkRetries'
