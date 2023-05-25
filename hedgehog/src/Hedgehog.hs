@@ -80,8 +80,8 @@ module Hedgehog (
   , withShrinks
   , ShrinkLimit
 
-  , withShrinkTime
-  , ShrinkTimeLimit
+  , withShrinkTimeoutMicros
+  , ShrinkTimeoutMicros
 
   , withRetries
   , ShrinkRetries
@@ -191,7 +191,7 @@ import           Hedgehog.Internal.Property (Property, PropertyT, PropertyName)
 import           Hedgehog.Internal.Property (Group(..), GroupName)
 import           Hedgehog.Internal.Property (Confidence, verifiedTermination, withConfidence)
 import           Hedgehog.Internal.Property (ShrinkLimit, withShrinks)
-import           Hedgehog.Internal.Property (ShrinkTimeLimit, withShrinkTime)
+import           Hedgehog.Internal.Property (ShrinkTimeoutMicros, withShrinkTimeoutMicros)
 import           Hedgehog.Internal.Property (ShrinkRetries, withRetries)
 import           Hedgehog.Internal.Property (Skip, withSkip)
 import           Hedgehog.Internal.Property (Test, TestT, property, test)

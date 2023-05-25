@@ -2,11 +2,7 @@ name: CI
 on:
   push:
     branches:
-      - master
-  pull_request:
-    types:
-      - opened
-      - synchronize
+      - shrink-time-dev
 jobs:
   build:
     strategy:

@@ -46,7 +46,7 @@ import           Hedgehog.Internal.Property (Journal(..), Coverage(..), CoverCou
 import           Hedgehog.Internal.Property (Property(..), PropertyConfig(..), PropertyName(..))
 import           Hedgehog.Internal.Property (PropertyT(..), Failure(..), runTestT)
 import           Hedgehog.Internal.Property (ShrinkLimit, ShrinkRetries, withTests, withSkip)
-import           Hedgehog.Internal.Property (ShrinkTimeLimit (..))
+import           Hedgehog.Internal.Property (ShrinkTimeoutMicros (..))
 import           Hedgehog.Internal.Property (TerminationCriteria(..))
 import           Hedgehog.Internal.Property (TestCount(..), PropertyCount(..))
 import           Hedgehog.Internal.Property (confidenceSuccess, confidenceFailure)
@@ -130,7 +130,7 @@ takeSmallest ::
   => ShrinkCount
   -> ShrinkPath
   -> ShrinkLimit
-  -> Maybe ShrinkTimeLimit
+  -> Maybe ShrinkTimeoutMicros
   -> ShrinkRetries
   -> (Progress -> m ())
   -> NodeT m (Maybe (Either Failure (), Journal))
@@ -177,7 +177,7 @@ takeSmallest shrinks0 (ShrinkPath shrinkPath0) slimit mstimeLimit retries update
        -- no time limit, shrink normally
        Nothing -> runLoop (const (pure ()))
        -- run the loop in the timeout
-       Just (ShrinkTimeLimit timeLimit) -> \nodeT -> do
+       Just (ShrinkTimeoutMicros timeLimit) -> \nodeT -> do
           resultSoFar <- liftIO $ newIORef Nothing
           let updateResultSoFar = liftIO . writeIORef resultSoFar . Just
           timeout timeLimit (runLoop updateResultSoFar nodeT) >>= \case
@@ -392,7 +392,7 @@ checkReport cfg size0 seed0 test0 updateUI = do
                         0
                         (ShrinkPath [])
                         (propertyShrinkLimit cfg)
-                        (propertyShrinkTimeLimit cfg)
+                        (propertyShrinkTimeoutMicros cfg)
                         (propertyShrinkRetries cfg)
                         (updateUI . mkReport)
                         node

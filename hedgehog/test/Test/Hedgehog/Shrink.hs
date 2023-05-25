@@ -1,3 +1,4 @@
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE TemplateHaskell #-}
 
@@ -8,6 +9,9 @@ import           Control.Monad (when)
 import           Control.Monad.IO.Class (MonadIO(..))
 import           Data.IORef (IORef)
 import qualified Data.IORef as IORef
+#if MIN_VERSION_base(4,11,0)
+import qualified GHC.Clock as Clock
+#endif
 
 import           Hedgehog
 import qualified Hedgehog.Gen as Gen
@@ -39,10 +43,10 @@ prop_ShrinkLimit =
       _ -> failure
 
 -- Time limit of 0 i.e. does not shrink at all
-prop_ShrinkTimeLimitZero :: Property
-prop_ShrinkTimeLimitZero =
+prop_ShrinkTimeoutMicrosZero :: Property
+prop_ShrinkTimeoutMicrosZero =
   withTests 1 . property $ do
-    (report, gens) <- checkModProp (withShrinkTime 0)
+    (report, gens) <- checkModProp (withShrinkTimeoutMicros 0)
     [50] === gens
     case reportStatus report of
       GaveUp -> pure ()
@@ -62,15 +66,15 @@ prop_ShrinkTimeLimitZero =
 -- (and took 7 hours!). Thus we use the 1 second timeout as it seems robust
 -- enough to not cause CI failures, and we cap the tests at 1 to keep the
 -- running time fast.
-prop_ShrinkTimeLimit :: Property
-prop_ShrinkTimeLimit =
+prop_ShrinkTimeoutMicros :: Property
+prop_ShrinkTimeoutMicros =
   withTests 1 . property $ do
     -- Test generates [ 50 , 0 , 25 , 13 , 7 , 4 , 6 , 5 ]
     -- The 1 s timeout combined with the 10 s delay on 13 means
     -- shrinking will get stuck on 13, hence:
     --   - only generate [50 , 0 , 25 , 13]
     --   - final shrink value is 25
-    (report, gens) <- checkModPropGen delay (withShrinkTime shrinkTime)
+    (report, gens) <- checkModPropGen delay (withShrinkTimeoutMicros shrinkTime)
     [50 , 0 , 25 , 13] === gens
     case reportStatus report of
       Failed f -> do
@@ -84,6 +88,30 @@ prop_ShrinkTimeLimit =
     shrinkTime = 1000000 --  1 sec
     -- Does not matter what this is, as long as it is longer than shrinkTime
     delayTime = 10000000 -- 10 sec
+
+prop_ShrinkTimeoutMicrosClock :: Property
+#if MIN_VERSION_base(4,11,0)
+-- Time limit of 2 seconds. Verifies that withShrinkTime indeed cancels
+-- shrinking within the time limit we want.
+prop_ShrinkTimeoutMicrosClock =
+  property $ do
+    startTime <- liftIO $ Clock.getMonotonicTime
+    annotateShow startTime
+    _ <- checkModPropGen delay30s (withShrinkTimeoutMicros 2000000)
+    endTime <- liftIO $ Clock.getMonotonicTime
+    annotateShow endTime
+    let timeElapsed = endTime - startTime
+    annotateShow timeElapsed
+    -- should be around 2
+    diff timeElapsed (>=) 1.5
+    diff timeElapsed (<=) 2.5
+  where
+    delay30s x = when (x == 13) (liftIO $ CC.threadDelay 30000000)
+#else
+-- Needed because auto test discovery via $$(discover) picks up
+-- prop_ShrinkTimeoutMicrosClock name before cpp is evaluated.
+prop_ShrinkTimeoutMicrosClock = property (pure ())
+#endif
 
 -- Given a property modifier, returns the property's report and generated
 -- values.

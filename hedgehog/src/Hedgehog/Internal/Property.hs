@@ -33,7 +33,7 @@ module Hedgehog.Internal.Property (
   , DiscardLimit(..)
   , DiscardCount(..)
   , ShrinkLimit(..)
-  , ShrinkTimeLimit (..)
+  , ShrinkTimeoutMicros (..)
   , ShrinkCount(..)
   , Skip(..)
   , ShrinkPath(..)
@@ -41,7 +41,7 @@ module Hedgehog.Internal.Property (
   , withTests
   , withDiscards
   , withShrinks
-  , withShrinkTime
+  , withShrinkTimeoutMicros
   , withRetries
   , withSkip
   , property
@@ -283,7 +283,7 @@ data PropertyConfig =
   PropertyConfig {
       propertyDiscardLimit :: !DiscardLimit
     , propertyShrinkLimit :: !ShrinkLimit
-    , propertyShrinkTimeLimit :: !(Maybe ShrinkTimeLimit)
+    , propertyShrinkTimeoutMicros :: !(Maybe ShrinkTimeoutMicros)
     , propertyShrinkRetries :: !ShrinkRetries
     , propertyTerminationCriteria :: !TerminationCriteria
 
@@ -348,11 +348,11 @@ newtype ShrinkLimit =
 --
 -- @
 --   -- 1_000_000 microseconds == 1 second
---   1_000_000 :: ShrinkTimeLimit
+--   1_000_000 :: ShrinkTimeoutMicros
 -- @
 --
-newtype ShrinkTimeLimit =
-  ShrinkTimeLimit Int
+newtype ShrinkTimeoutMicros =
+  ShrinkTimeoutMicros Int
   deriving (Eq, Ord, Show, Num, Enum, Real, Integral, Lift)
 
 -- | The numbers of times a property was able to shrink after a failing test.
@@ -1180,7 +1180,7 @@ defaultConfig =
         100
     , propertyShrinkLimit =
         1000
-    , propertyShrinkTimeLimit =
+    , propertyShrinkTimeoutMicros =
         Nothing
     , propertyShrinkRetries =
         0
@@ -1266,12 +1266,14 @@ withShrinks :: ShrinkLimit -> Property -> Property
 withShrinks n =
   mapConfig $ \config -> config { propertyShrinkLimit = n }
 
--- | Set the time -- in microseconds -- a property is allowed to shrink before
---   the test runner gives up and prints the counterexample.
+-- | Set the timeout -- in microseconds -- after which the test runner gives
+--   up on shrinking and prints the best counterexample. Note that shrinking
+--   can be cancelled before the timeout if the 'ShrinkLimit' is reached
+--   (defaults to 1,000). See 'withShrinks'.
 --
-withShrinkTime :: ShrinkTimeLimit -> Property -> Property
-withShrinkTime n =
-  mapConfig $ \config -> config { propertyShrinkTimeLimit = Just n }
+withShrinkTimeoutMicros :: ShrinkTimeoutMicros -> Property -> Property
+withShrinkTimeoutMicros n =
+  mapConfig $ \config -> config { propertyShrinkTimeoutMicros = Just n }
 
 -- | Set the number of times a property will be executed for each shrink before
 --   the test runner gives up and tries a different shrink. See 'ShrinkRetries'
